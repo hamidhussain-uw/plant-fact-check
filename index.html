@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Plant Fact Check</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: phone-first card stack. Compact header with progress, one fact card filling the middle, three verdict buttons pinned under it. */
+:root {
+  --bg: #eef2ea; --surface: #ffffff; --ink: #1c2419; --muted: #5d6b58; --line: #d6ddd0;
+  --accent: #2f6b3a; --accent-soft: #e2eedf;
+  --right: #2d7a3e; --right-soft: #d6ecd8; --wrong: #b3362c; --wrong-soft: #f6dcd8; --unsure: #9a6b0c; --unsure-soft: #f5ead0;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121811; --surface: #1c241b; --ink: #e5ebe0; --muted: #9aa894; --line: #2f3a2d;
+  --accent: #7fc08a; --accent-soft: #23362a;
+  --right: #79c98a; --right-soft: #1f3a25; --wrong: #f0877c; --wrong-soft: #45231f; --unsure: #e2b85a; --unsure-soft: #3d321a;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121811; --surface: #1c241b; --ink: #e5ebe0; --muted: #9aa894; --line: #2f3a2d;
+  --accent: #7fc08a; --accent-soft: #23362a;
+  --right: #79c98a; --right-soft: #1f3a25; --wrong: #f0877c; --wrong-soft: #45231f; --unsure: #e2b85a; --unsure-soft: #3d321a;
+  color-scheme: dark }
+* { box-sizing: border-box }
+[hidden] { display: none !important }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px) }
+html, body { margin: 0 }
+html, body { height: 100% }
+body { background: var(--bg); color: var(--ink); font: 16px/1.5 var(--font-body); overflow-x: hidden }
+.app { height: 100%; max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px 16px }
+header { display: grid; gap: 8px }
+.top { display: flex; align-items: center; gap: 10px }
+h1 { font: 700 22px/1.15 var(--font-display); margin: 0; flex: 1; min-width: 0; text-wrap: balance }
+h1 i { font-weight: 600; color: var(--muted); font-size: 16px }
+.back { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font: 500 14px var(--font-body); color: var(--ink); cursor: pointer }
+.back:disabled { opacity: .4; cursor: default }
+.progress { display: flex; align-items: center; gap: 10px; font: 500 13px var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted) }
+.bar { flex: 1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden }
+.bar span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .25s }
+.hint { font-size: 13px; color: var(--muted); text-align: center; margin: 0 }
+.notice { padding: 8px 12px; border-radius: 8px; background: var(--unsure-soft); font-size: 14px }
+.stage { flex: 1; min-height: 0; position: relative; display: grid }
+.card { grid-area: 1 / 1; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 22px 20px;
+  display: flex; flex-direction: column; gap: 12px; overflow-y: auto; touch-action: pan-y; user-select: none;
+  box-shadow: 0 10px 30px -18px rgba(20, 40, 20, .35); will-change: transform; position: relative }
+.card.next { transform: scale(.96) translateY(10px); opacity: .6; pointer-events: none }
+.card .group { font: 600 12px var(--font-body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted) }
+.card .label { font: 700 clamp(22px, 6vw, 28px)/1.2 var(--font-display); text-wrap: balance }
+.card .value { font: 500 clamp(22px, 7vw, 30px)/1.25 var(--font-mono); color: var(--accent); overflow-wrap: anywhere }
+.card .value.prose { font: 400 17px/1.55 var(--font-body); color: var(--ink); white-space: pre-line }
+.card .extra { font-size: 14.5px; color: var(--muted) }
+.card details { font-size: 14px; margin-top: auto }
+.card summary { cursor: pointer; color: var(--accent); font-weight: 500; padding: 6px 0 }
+.card details ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 8px }
+.card details a { color: var(--accent) }
+.card .why { color: var(--muted); margin: 6px 0 0 }
+.others { font: 500 12.5px var(--font-mono); color: var(--muted) }
+.stamp { position: absolute; top: 18px; padding: 4px 12px; border-radius: 8px; border: 3px solid; font: 700 20px var(--font-display); text-transform: uppercase; opacity: 0; pointer-events: none }
+.stamp.r { right: 18px; color: var(--right); border-color: var(--right); transform: rotate(10deg) }
+.stamp.w { left: 18px; color: var(--wrong); border-color: var(--wrong); transform: rotate(-10deg) }
+.actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px }
+.actions button { border: 2px solid var(--line); background: var(--surface); border-radius: 14px; padding: 14px 6px; font: 600 16px var(--font-body); cursor: pointer; color: var(--ink) }
+.actions .w { border-color: var(--wrong); color: var(--wrong) }
+.actions .u { border-color: var(--unsure); color: var(--unsure) }
+.actions .r { border-color: var(--right); color: var(--right) }
+.actions button:active { transform: scale(.97) }
+button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px }
+.sheet { position: fixed; inset: auto 0 0 0; background: var(--surface); border-top: 1px solid var(--line); border-radius: 18px 18px 0 0;
+  padding: 18px max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  display: grid; gap: 10px; box-shadow: 0 -12px 30px -16px rgba(0, 0, 0, .35); z-index: 20; max-width: 560px; margin: 0 auto }
+.sheet h2 { margin: 0; font: 700 19px var(--font-display) }
+.sheet textarea, .sheet input { width: 100%; font: 16px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px }
+.sheet textarea { min-height: 84px; resize: vertical }
+.sheet .row { display: grid; grid-template-columns: 1fr 2fr; gap: 10px }
+.sheet .row button { border-radius: 12px; padding: 12px; font: 600 16px var(--font-body); cursor: pointer; border: 1px solid var(--line); background: var(--bg); color: var(--ink) }
+.sheet .row .primary { background: var(--accent); border-color: var(--accent); color: var(--surface) }
+.scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); z-index: 15 }
+.done { grid-area: 1 / 1; text-align: center; display: grid; align-content: center; gap: 14px; padding: 20px }
+.done h2 { font: 700 26px var(--font-display); margin: 0 }
+.done p { color: var(--muted); margin: 0 }
+.done button { border: 0; background: var(--accent); color: var(--surface); border-radius: 12px; padding: 13px 18px; font: 600 16px var(--font-body); cursor: pointer; justify-self: center }
+.done button.alt { background: transparent; color: var(--accent); border: 1px solid var(--line) }
+@media (prefers-reduced-motion: reduce) { .bar span { transition: none } }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="top">
+      <h1 id="plantName">Loading…</h1>
+      <button class="back" id="back" type="button" disabled aria-label="Go back to the previous fact">Back</button>
+    </div>
+    <div class="progress"><span id="progText">0 / 0</span><div class="bar" aria-hidden="true"><span id="progBar"></span></div></div>
+    <div id="notice" class="notice" hidden></div>
+  </header>
+  <div class="stage" id="stage" aria-live="polite"></div>
+  <p class="hint" id="hint">Swipe right if it's right, left if it's wrong.</p>
+  <div class="actions" id="actions">
+    <button class="w" type="button" data-v="wrong">Wrong</button>
+    <button class="u" type="button" data-v="unsure">Not sure</button>
+    <button class="r" type="button" data-v="right">Right</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const LABELS = { germ_soil_temp_min_c: "Lowest soil temperature to sow", germ_soil_temp_opt_c: "Best soil temperature for sprouting",
+    days_to_germination: "Days to sprout", days_to_maturity: "Days to first harvest", ph: "Soil pH", sow_depth_cm: "Sowing depth",
+    spacing_cm: "Space between plants", weeks_indoors: "Weeks to raise seedlings indoors", maturity_from: "Days to harvest are counted from",
+    mature_height_cm: "Height when grown", container_suitable: "Grows in a pot", sow_methods: "How to sow", fertilizer_type: "Fertiliser",
+    drought_tolerance: "Copes with drought", frost_tolerance: "Frost", soil_texture: "Soil types", habit: "Growth habit", water: "Water need",
+    sun: "Sun", grow_temp_min_c: "Lowest growing temperature", grow_temp_max_c: "Highest growing temperature" };
+  const TEXT = { summary: "Summary", how_to_plant: "How to plant", how_to_care: "How to care", harvest: "Harvest", common_mistakes: "Common mistakes" };
+  const nice = k => LABELS[k] || k.replace(/_(cm|c|l|days|years|mm|m)$/, "").replaceAll("_", " ").replace(/^./, c => c.toUpperCase());
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const S = { data: null, plant: null, mode: "key", queue: [], pos: 0, history: [], uid: null, db: null, user: null,
+    canWrite: true, mine: {}, raw: {}, docExists: false, busy: false };
+  let writing = Promise.resolve();
+
+  const note = (m) => { const n = $("#notice"); n.textContent = m || ""; n.hidden = !m; };
+
+  function allItems(p) {
+    const out = p.fields.filter(f => f.state === "filled").map(f => ({ ...f, kind: "field", label: nice(f.key) }));
+    p.problems.forEach(pr => out.push({ key: pr.key, kind: "problem", tier: "E", state: "filled", group: "Problem",
+      label: pr.name, value: pr.signs, extra: (pr.prevention || []).length ? "Prevention: " + pr.prevention.join("; ") : "", sources: pr.sources || [], evidence: {} }));
+    for (const [k, v] of Object.entries(p.text)) out.push({ key: "text_" + k, kind: "text", tier: "E", state: "filled", group: "Written advice",
+      label: TEXT[k] || nice(k), value: Array.isArray(v) ? v.map(x => "• " + x).join("\n") : v, sources: [], evidence: {} });
+    return out;
+  }
+  const isKey = it => it.kind === "field" && it.tier === "C" && it.value !== "unknown";
+
+  function buildQueue() {
+    const all = allItems(S.plant).filter(it => S.mode === "key" ? isKey(it) : !isKey(it) && it.value !== "unknown");
+    S.total = all.length;
+    S.queue = all.filter(it => !S.mine[it.key]?.v);
+    S.pos = 0;
+  }
+
+  function progress() {
+    const done = S.total - (S.queue.length - S.pos);
+    $("#progText").textContent = `${done} / ${S.total}`;
+    $("#progBar").style.width = S.total ? (100 * done / S.total) + "%" : "0";
+    $("#back").disabled = !S.history.length;
+  }
+
+  function sourceLi(p, sid, quote) {
+    const s = p.sources.find(x => x.id === sid), li = document.createElement("li");
+    if (s) { const a = document.createElement("a"); a.href = s.url; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = s.publisher || s.title || s.url; li.append(a); }
+    else li.append(sid);
+    if (quote) { const q = document.createElement("div"); q.className = "why"; q.textContent = "“" + quote.replace(/^\[paraphrase\]\s*/, "") + "”"; li.append(q); }
+    return li;
+  }
+
+  function cardFor(it, isNext) {
+    const p = S.plant, c = document.createElement("article");
+    c.className = "card" + (isNext ? " next" : ""); c.setAttribute("aria-label", it.label);
+    const g = document.createElement("div"); g.className = "group"; g.textContent = it.group; c.append(g);
+    const l = document.createElement("div"); l.className = "label"; l.textContent = it.label; c.append(l);
+    const v = document.createElement("div"); v.className = "value" + (it.kind === "field" ? "" : " prose");
+    v.textContent = it.value + (it.kind === "field" && it.unit ? " " + it.unit : ""); c.append(v);
+    if (it.extra) { const e = document.createElement("div"); e.className = "extra"; e.textContent = it.extra; c.append(e); }
+    if ((it.sources || []).length || it.note) {
+      const d = document.createElement("details"); const s = document.createElement("summary");
+      s.textContent = "Where this comes from"; d.append(s);
+      if (it.note) { const n = document.createElement("p"); n.className = "why"; n.textContent = it.note; d.append(n); }
+      if ((it.sources || []).length) { const ul = document.createElement("ul"); it.sources.forEach(sid => ul.append(sourceLi(p, sid, it.evidence?.[sid]))); d.append(ul); }
+      c.append(d);
+    }
+    const r = document.createElement("div"); r.className = "stamp r"; r.textContent = "Right"; c.append(r);
+    const w = document.createElement("div"); w.className = "stamp w"; w.textContent = "Wrong"; c.append(w);
+    return c;
+  }
+
+  function show() {
+    const st = $("#stage"); st.replaceChildren(); progress();
+    const cur = S.queue[S.pos];
+    $("#actions").hidden = !cur || !S.canWrite; $("#hint").hidden = !cur || !S.canWrite;
+    if (!cur) return finish(st);
+    const nx = S.queue[S.pos + 1];
+    if (nx) st.append(cardFor(nx, true));
+    const card = cardFor(cur, false); st.append(card); swipe(card);
+  }
+
+  function finish(st) {
+    const d = document.createElement("div"); d.className = "done";
+    const h = document.createElement("h2"); const t = document.createElement("p");
+    const b = document.createElement("button"); b.type = "button";
+    if (S.mode === "key") {
+      h.textContent = "Thank you"; t.textContent = "That's every key fact for this plant. There are a few optional ones too: pests, written advice and minor details.";
+      b.textContent = "Check optional facts"; b.onclick = () => { S.mode = "more"; S.history = []; buildQueue(); show(); };
+    } else {
+      h.textContent = "All done"; t.textContent = "Thank you. Your answers are saved.";
+      b.textContent = "Back to key facts"; b.className = "alt"; b.onclick = () => { S.mode = "key"; S.history = []; buildQueue(); show(); };
+    }
+    d.append(h, t, b);
+    if (S.data.plants.length > 1) {
+      const i = S.data.plants.findIndex(p => p.id === S.plant.id), np = S.data.plants[(i + 1) % S.data.plants.length];
+      const nb = document.createElement("button"); nb.type = "button"; nb.className = "alt";
+      nb.textContent = "Next plant: " + (np.common[0] || np.scientific); nb.onclick = () => choose(np.id); d.append(nb);
+    }
+    st.append(d);
+  }
+
+  function swipe(card) {
+    if (!S.canWrite) return;
+    let x0 = null, y0 = 0, dx = 0, id = null, horiz = null;
+    const sr = card.querySelector(".stamp.r"), sw = card.querySelector(".stamp.w");
+    card.addEventListener("pointerdown", e => { if (e.target.closest("a, summary, details")) return; x0 = e.clientX; y0 = e.clientY; dx = 0; horiz = null; id = e.pointerId; card.style.transition = "none"; });
+    card.addEventListener("pointermove", e => {
+      if (x0 === null || e.pointerId !== id) return;
+      dx = e.clientX - x0; const dy = e.clientY - y0;
+      if (horiz === null && Math.abs(dx) + Math.abs(dy) > 8) { horiz = Math.abs(dx) > Math.abs(dy); if (horiz) card.setPointerCapture(id); }
+      if (!horiz) return;
+      card.style.transform = `translateX(${dx}px) rotate(${dx / 22}deg)`;
+      sr.style.opacity = Math.max(0, Math.min(1, dx / 90)); sw.style.opacity = Math.max(0, Math.min(1, -dx / 90));
+    });
+    const end = () => {
+      if (x0 === null) return; x0 = null;
+      const lim = Math.min(110, card.offsetWidth * .28);
+      if (horiz && Math.abs(dx) > lim) return decide(dx > 0 ? "right" : "wrong", card, dx > 0 ? 1 : -1);
+      card.style.transition = "transform .2s"; card.style.transform = ""; sr.style.opacity = 0; sw.style.opacity = 0;
+    };
+    card.addEventListener("pointerup", end); card.addEventListener("pointercancel", end);
+  }
+
+  function flyOut(card, dir) {
+    return new Promise(res => {
+      if (!card || reduce) return res();
+      card.style.transition = "transform .22s ease-in, opacity .22s"; card.style.transform = `translateX(${dir * 130}%) rotate(${dir * 14}deg)`; card.style.opacity = "0";
+      setTimeout(res, 220);
+    });
+  }
+
+  async function decide(v, card, dir) {
+    if (S.busy) return; S.busy = true;
+    const it = S.queue[S.pos];
+    card = card || $("#stage .card:not(.next)");
+    await flyOut(card, dir ?? (v === "right" ? 1 : v === "wrong" ? -1 : 0));
+    S.history.push(S.pos);
+    save(it.key, { v });
+    if (v !== "right") await ask(it, v);
+    S.pos++; S.busy = false; show();
+  }
+
+  function ask(it, v) {
+    return new Promise(res => {
+      const scrim = document.createElement("div"); scrim.className = "scrim";
+      const sh = document.createElement("form"); sh.className = "sheet"; sh.setAttribute("aria-label", "Add a note");
+      const h = document.createElement("h2"); h.textContent = v === "wrong" ? "What should it be?" : "What's unclear?";
+      const ta = document.createElement("textarea"); ta.id = "note-text"; ta.placeholder = v === "wrong" ? "For example: plants 30 to 45 cm apart" : "Optional"; ta.value = S.mine[it.key]?.c || "";
+      ta.setAttribute("aria-label", "Your note");
+      const src = document.createElement("input"); src.id = "note-src"; src.type = "url"; src.placeholder = "Link to a guide (optional)"; src.value = S.mine[it.key]?.src || "";
+      src.setAttribute("aria-label", "Link to a guide");
+      const row = document.createElement("div"); row.className = "row";
+      const skip = document.createElement("button"); skip.type = "button"; skip.textContent = "Skip";
+      const ok = document.createElement("button"); ok.type = "submit"; ok.className = "primary"; ok.textContent = "Save and next";
+      row.append(skip, ok); sh.append(h, ta, src, row);
+      const close = async (keep) => { if (keep && (ta.value.trim() || src.value.trim())) save(it.key, { c: ta.value.trim(), src: src.value.trim() }); scrim.remove(); sh.remove(); res(); };
+      skip.onclick = () => close(false); scrim.onclick = () => close(false);
+      sh.onsubmit = e => { e.preventDefault(); close(true); };
+      document.body.append(scrim, sh); ta.focus();
+    });
+  }
+
+  // Answers go to the owner's Google Sheet (google-apps-script.gs). Progress is kept on this device.
+  const ENDPOINT = "";
+  const KEY = "plant-fact-check";
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+  const keep = () => { try { localStorage.setItem(KEY, JSON.stringify(S.local)); } catch {} };
+
+  function save(key, patch) {
+    const entry = { ...(S.mine[key] || {}), ...patch, at: new Date().toISOString() };
+    S.mine[key] = entry;
+    S.local.answers = S.local.answers || {}; S.local.answers[S.plant.id] = S.mine; keep();
+    if (!ENDPOINT) return;
+    const body = JSON.stringify({ reviewer: S.local.name, reviewer_id: S.local.id, plant: S.plant.id, fact: key,
+      verdict: entry.v || "", comment: entry.c || "", link: entry.src || "", at: entry.at });
+    writing = writing.then(() => fetch(ENDPOINT, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body })
+      .then(() => note(""))
+      .catch(() => note("An answer didn't send. Check your connection; your next answer will try again.")));
+  }
+
+  $("#back").onclick = () => {
+    if (S.busy || !S.history.length) return;
+    S.pos = S.history.pop(); const it = S.queue[S.pos];
+    if (it) save(it.key, { v: null });
+    show();
+  };
+  $("#actions").onclick = e => { const b = e.target.closest("button[data-v]"); if (b) decide(b.dataset.v); };
+  document.addEventListener("keydown", e => {
+    if (e.target.closest("textarea, input")) return;
+    if (e.key === "ArrowRight") decide("right"); else if (e.key === "ArrowLeft") decide("wrong"); else if (e.key === "ArrowDown") decide("unsure");
+  });
+
+  function choose(id) {
+    S.plant = S.data.plants.find(p => p.id === id) || S.data.plants[0];
+    const p = S.plant, h = $("#plantName"); h.replaceChildren();
+    h.append((p.common[0] || p.scientific).replace(/^./, c => c.toUpperCase()) + " ");
+    const i = document.createElement("i"); i.textContent = p.scientific; h.append(i);
+    S.mine = { ...(S.local.answers?.[p.id] || {}) }; S.mode = "key"; S.history = [];
+    buildQueue(); show();
+  }
+
+  let started = false;
+  const start = () => { if (!started && S.data && S.ready) { started = true; choose(S.data.plants[0]?.id); } };
+
+  fetch("plants.json").then(r => r.json()).then(d => { S.data = d; start(); })
+    .catch(() => { $("#stage").replaceChildren(Object.assign(document.createElement("p"), { className: "hint", textContent: "The plant file could not be loaded. Reload the page to try again." })); });
+
+  S.local = load();
+  if (!S.local.id) { S.local.id = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)); keep(); }
+  if (!ENDPOINT) note("Answers are not being collected yet. You can try the cards, but nothing is sent.");
+  if (S.local.name) { S.ready = true; start(); }
+  else {
+    $("#actions").hidden = true; $("#hint").hidden = true;
+    const f = document.createElement("form"); f.className = "done";
+    const h = document.createElement("h2"); h.textContent = "Check plant facts";
+    const t = document.createElement("p"); t.textContent = "Swipe right if a fact is right, left if it's wrong. It takes about five minutes.";
+    const i = document.createElement("input"); i.id = "reviewer-name"; i.required = true; i.maxLength = 80; i.placeholder = "Your name"; i.autocomplete = "name";
+    i.setAttribute("aria-label", "Your name");
+    i.style.cssText = "font:16px var(--font-body);padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);width:100%";
+    const b = document.createElement("button"); b.type = "submit"; b.textContent = "Start";
+    f.append(h, t, i, b); $("#stage").replaceChildren(f);
+    f.onsubmit = e => { e.preventDefault(); S.local.name = i.value.trim(); if (!S.local.name) return; keep(); S.ready = true; start(); };
+  }
+})();
+</script>
+</body>
+</html>
