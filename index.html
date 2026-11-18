@@ -167,7 +167,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus
     const g = document.createElement("div"); g.className = "group"; g.textContent = it.group; c.append(g);
     const l = document.createElement("div"); l.className = "label"; l.textContent = it.label; c.append(l);
     const v = document.createElement("div"); v.className = "value" + (it.kind === "field" ? "" : " prose");
-    v.textContent = it.value + (it.kind === "field" && it.unit ? " " + it.unit : ""); c.append(v);
+    v.textContent = it.value + (it.kind === "field" && it.unit && /^-?\d/.test(it.value) ? " " + it.unit : ""); c.append(v); // no unit after words like "until season end"
     if (it.extra) { const e = document.createElement("div"); e.className = "extra"; e.textContent = it.extra; c.append(e); }
     if ((it.sources || []).length || it.note) {
       const d = document.createElement("details"); const s = document.createElement("summary");
