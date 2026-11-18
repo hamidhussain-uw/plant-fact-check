@@ -113,10 +113,10 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus
 <script>
 (() => {
   const $ = s => document.querySelector(s);
-  const LABELS = { germ_soil_temp_min_c: "Lowest soil temperature to sow", germ_soil_temp_opt_c: "Best soil temperature for sprouting",
-    days_to_germination: "Days to sprout", days_to_maturity: "Days to first harvest", ph: "Soil pH", sow_depth_cm: "Sowing depth",
+  const LABELS = { germ_soil_temp_min_c: "Lowest soil temperature to sow or plant", germ_soil_temp_opt_c: "Best soil temperature for sprouting",
+    days_to_germination: "Days to sprout", days_to_maturity: "Days to first harvest", ph: "Soil pH", sow_depth_cm: "Sowing or planting depth",
     spacing_cm: "Space between plants", weeks_indoors: "Weeks to raise seedlings indoors", maturity_from: "Days to harvest are counted from",
-    mature_height_cm: "Height when grown", container_suitable: "Grows in a pot", sow_methods: "How to sow", fertilizer_type: "Fertiliser",
+    mature_height_cm: "Height when grown", container_suitable: "Grows in a pot", sow_methods: "How to start", fertilizer_type: "Fertiliser",
     drought_tolerance: "Copes with drought", frost_tolerance: "Frost", soil_texture: "Soil types", habit: "Growth habit", water: "Water need",
     sun: "Sun", grow_temp_min_c: "Lowest growing temperature", grow_temp_max_c: "Highest growing temperature" };
   const TEXT = { summary: "Summary", how_to_plant: "How to plant", how_to_care: "How to care", harvest: "Harvest", common_mistakes: "Common mistakes" };
@@ -206,7 +206,8 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus
     if (S.data.plants.length > 1) {
       const i = S.data.plants.findIndex(p => p.id === S.plant.id), np = S.data.plants[(i + 1) % S.data.plants.length];
       const nb = document.createElement("button"); nb.type = "button"; nb.className = "alt";
-      nb.textContent = "Next plant: " + (np.common[0] || np.scientific); nb.onclick = () => choose(np.id); d.append(nb);
+      nb.textContent = "Next plant: " + (np.common[0] || np.scientific); nb.onclick = () => choose(np.id);
+      if (S.mode === "key") { b.className = "alt"; d.insertBefore(nb, b); } else d.append(nb);
     }
     st.append(d);
   }
@@ -273,7 +274,9 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus
   }
 
   // Answers go to the owner's Google Sheet (google-apps-script.gs). Progress is kept on this device.
-  const ENDPOINT = "";
+  // github.io: the owner's Apps Script web app (D-038). Elsewhere (PC or NUC server.py): same-origin POST.
+  const SHEET_URL = "https://script.google.com/macros/s/AKfycbwWtQ9wzFPpkmDBDce8SCc-33EvHGKWnFzC5HBZ72tALuXAYtAXXBDp2xk1RXLihZI/exec";
+  const ENDPOINT = location.hostname.endsWith("github.io") ? SHEET_URL : "answer";
   const KEY = "plant-fact-check";
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
   const keep = () => { try { localStorage.setItem(KEY, JSON.stringify(S.local)); } catch {} };
@@ -285,8 +288,8 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus
     if (!ENDPOINT) return;
     const body = JSON.stringify({ reviewer: S.local.name, reviewer_id: S.local.id, plant: S.plant.id, fact: key,
       verdict: entry.v || "", comment: entry.c || "", link: entry.src || "", at: entry.at });
-    writing = writing.then(() => fetch(ENDPOINT, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body })
-      .then(() => note(""))
+    writing = writing.then(() => fetch(ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain" }, body })
+      .then(r => note(r.ok ? "" : "An answer wasn't accepted. Your next answer will try again."))
       .catch(() => note("An answer didn't send. Check your connection; your next answer will try again.")));
   }
 
@@ -312,7 +315,9 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus
   }
 
   let started = false;
-  const start = () => { if (!started && S.data && S.ready) { started = true; choose(S.data.plants[0]?.id); } };
+  // Start at the first plant that still has unanswered key facts.
+  const unfinished = () => S.data.plants.find(p => allItems(p).some(it => isKey(it) && !S.local.answers?.[p.id]?.[it.key]?.v)) || S.data.plants[0];
+  const start = () => { if (!started && S.data && S.ready) { started = true; choose(unfinished()?.id); } };
 
   fetch("plants.json").then(r => r.json()).then(d => { S.data = d; start(); })
     .catch(() => { $("#stage").replaceChildren(Object.assign(document.createElement("p"), { className: "hint", textContent: "The plant file could not be loaded. Reload the page to try again." })); });
